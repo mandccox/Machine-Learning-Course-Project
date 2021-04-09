@@ -1,0 +1,65 @@
+---
+title: "Machine Learning Course Project"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Project summary
+Six participants were asked to perform barbell lifts correctly and incorrectly in 
+five different ways. Use data from accelerometers on the belt, forearm, arm, and dumbell to predict the lift method.
+
+http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har 
+
+1. Load trainig data
+```{r}
+library(data.table)
+training <- fread("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv")
+```
+
+2. Remove columns that do not add to the model to reduce size of dataset. Several
+variables are derivatives of the other variables (max, min, avg, stddev, etc),
+and mostly ( > 97%) NA. Remove columns with user name, time stamp, window
+
+```{r message = FALSE, warning = FALSE}
+library(dplyr)
+library(caret)
+remove <- c("name", "timestamp", "window", "max", "min", "kurtosis", "skewness", 
+                  "amplitude", "var", "avg", "std", "V1")
+train1 <- select(training, !contains(remove))
+```
+
+3. Check remaining predictors to see if any others can be removed
+```{r}
+nearZeroVar(train1, saveMetrics = FALSE)
+```
+
+outcome shows no additional removal or variables appropriate
+
+4. Create a train and test subset of training dataset. This allows testing of 
+accuracy of model without using the final test data
+```{r}
+inTrain <- createDataPartition(y = train1$classe, p = 0.70, list = FALSE)
+subset_train <- train1[inTrain,]
+subset_test <- train1[-inTrain,]
+
+dim(subset_train)
+dim(subset_test)
+```
+
+5. Fit a model using boost method (gbm) on train subset. 
+```{r}
+modFitgbm <- train(classe ~ ., method="gbm",data=subset_train,verbose=FALSE)
+modFitgbm$finalModel
+```
+
+6. Show results
+```{r}
+predResultgbm <- predict(modFitgbm, subset_test)
+confusionMatrix(table(subset_test$classe, predResultgbm))
+```
+
+Model accuracy is 
+```{r}confusionMatrix(table(subset_test$classe, predResultgbm))[overall]$Accuracy```
